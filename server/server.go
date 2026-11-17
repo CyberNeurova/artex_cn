@@ -57,9 +57,9 @@ type Server struct {
 	loginLimit     *loginLimiter  // per-IP attempt limit on POST /api/auth/login
 	trustedProxies []netip.Prefix // ARTEX_TRUSTED_PROXIES; see clientIP
 
-	oauthClientID     string          // ARTEX_OAUTH_CLIENT_ID
-	oauthClientSecret string          // ARTEX_OAUTH_CLIENT_SECRET
-	oauthRedirectURI  string          // ARTEX_OAUTH_REDIRECT_URI
+	oauthClientID     string           // ARTEX_OAUTH_CLIENT_ID
+	oauthClientSecret string           // ARTEX_OAUTH_CLIENT_SECRET
+	oauthRedirectURI  string           // ARTEX_OAUTH_REDIRECT_URI
 	oauthStates       *oauthStateStore // in-flight PKCE flows
 
 	// concMu serializes concurrency-cap decisions (admission + reconcile) so a
