@@ -145,6 +145,12 @@ const FormatOllama llm.Format = "ollama"
 // empty BaseURL, the SDK would fall back to OpenAI's public endpoint.
 const DefaultOllamaBaseURL = "http://127.0.0.1:11434/v1"
 
+// DefaultCyberneurovaBaseURL is the Cyberneurova OpenRoute endpoint.
+// It speaks OpenAI Chat Completions; on the wire it uses FormatOpenAI.
+// Models are fetched dynamically via the /models endpoint (use the LLM page's
+// "fetch" button, or GET /v1/models with a Bearer token).
+const DefaultCyberneurovaBaseURL = "https://openroute.cyberneurova.com/v1"
+
 // ollamaPlaceholderKey is sent as the Bearer token when no key is configured.
 // Ollama ignores authorization, but a concrete value keeps the SDK from
 // falling back to OPENAI_API_KEY (which would silently ship a real cloud key
@@ -212,6 +218,11 @@ func FromEnv() (Config, bool) {
 	prov := strings.ToLower(strings.TrimSpace(os.Getenv("ARTEX_LLM_PROVIDER")))
 	anthKey := os.Getenv("ANTHROPIC_API_KEY")
 	oaiKey := os.Getenv("OPENAI_API_KEY")
+	// OPENROUTE_API_KEY is the Cyberneurova OpenRoute credential. When present and
+	// OPENAI_API_KEY is not set, it fills the same slot (OpenAI-compatible endpoint).
+	if oaiKey == "" {
+		oaiKey = os.Getenv("OPENROUTE_API_KEY")
+	}
 
 	if prov == "" {
 		switch {
@@ -233,6 +244,16 @@ func FromEnv() (Config, bool) {
 		Stream: !isFalsy(os.Getenv("ARTEX_LLM_STREAM")),
 	}
 	switch prov {
+	case "cyberneurova":
+		// Cyberneurova OpenRoute speaks OpenAI Chat Completions. The key is
+		// OPENROUTE_API_KEY (already resolved into oaiKey above) or OPENAI_API_KEY.
+		// Set ARTEX_LLM_MODEL to pick a model; use the LLM page's "fetch" button
+		// to list models available to your key.
+		c.Format = llm.FormatOpenAI
+		c.APIKey = oaiKey
+		if c.BaseURL == "" {
+			c.BaseURL = DefaultCyberneurovaBaseURL
+		}
 	case "openai":
 		c.Format = llm.FormatOpenAI
 		c.APIKey = oaiKey
@@ -282,6 +303,14 @@ func ConfigFrom(provider, model, baseURL, apiKey, proxy string) Config {
 		Stream:  true, // streaming by default; the caller overrides per profile
 	}
 	switch strings.TrimSpace(provider) {
+	case "cyberneurova":
+		// OpenAI Chat Completions wire format; base URL defaults to OpenRoute.
+		// No default model: use the LLM page's fetch button to discover available models.
+		c.Format = llm.FormatOpenAI
+		c.BaseURL = strings.TrimRight(strings.TrimSuffix(c.BaseURL, "/chat/completions"), "/")
+		if c.BaseURL == "" {
+			c.BaseURL = DefaultCyberneurovaBaseURL
+		}
 	case "openai":
 		c.Format = llm.FormatOpenAI
 		// provider appends "/chat/completions"; tolerate a full endpoint URL.
@@ -328,10 +357,13 @@ func isFalsy(s string) bool {
 }
 
 // Provider returns the short provider name
-// ("anthropic"/"openai"/"openai-responses"/"ollama").
+// ("anthropic"/"openai"/"openai-responses"/"ollama"/"cyberneurova").
 func (c Config) Provider() string {
 	switch c.Format {
 	case llm.FormatOpenAI:
+		if strings.HasPrefix(c.BaseURL, DefaultCyberneurovaBaseURL) {
+			return "cyberneurova"
+		}
 		return "openai"
 	case llm.FormatOpenAIResponses:
 		return "openai-responses"

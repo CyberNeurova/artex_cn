@@ -2156,13 +2156,14 @@ func (s *Server) pgLLMPoolReset(w http.ResponseWriter, r *http.Request) {
 }
 
 // pgListModels fetches available models from the provider's API endpoint.
-// Supports OpenAI-format (GET /models), Anthropic-format (GET /v1/models) and
-// Ollama (keyless OpenAI-compatible GET /v1/models on the local server); for
+// Supports OpenAI-format (GET /models), Anthropic-format (GET /v1/models),
+// Ollama (keyless OpenAI-compatible GET /v1/models on the local server), and
+// Cyberneurova (OpenAI-compatible GET /models on the OpenRoute endpoint); for
 // Anthropic-compatible third parties (e.g. DeepSeek) whose model list lives only on
 // the OpenAI path, it falls back to the OpenAI endpoint at the stripped root.
 func (s *Server) pgListModels(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Provider  string `json:"provider"` // "openai" | "anthropic" | "ollama"
+		Provider  string `json:"provider"` // "openai" | "openai-responses" | "anthropic" | "ollama" | "cyberneurova"
 		BaseURL   string `json:"base_url"`
 		APIKey    string `json:"api_key"`
 		Proxy     string `json:"proxy"`
@@ -2228,6 +2229,13 @@ func (s *Server) pgListModels(w http.ResponseWriter, r *http.Request) {
 
 	var candidates []candidate
 	switch provider {
+	case "cyberneurova":
+		// OpenAI-compatible endpoint; default base URL is the OpenRoute endpoint.
+		if baseURL == "" {
+			baseURL = agent.DefaultCyberneurovaBaseURL
+		}
+		b := strings.TrimRight(strings.TrimSuffix(baseURL, "/chat/completions"), "/")
+		candidates = append(candidates, candidate{b + "/models", bearerHdr()})
 	case "openai", "openai-responses":
 		// Responses API shares the OpenAI model list at /v1/models; tolerate a full
 		// endpoint URL of either format.

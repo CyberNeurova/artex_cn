@@ -54,14 +54,18 @@ const MAX_TOKENS_FIELDS: { value: string; label: string }[] = [
 const MAX_TOKENS_FIELD_HINTS: Record<string, string> = {
   openai:
     "Which key carries the cap. max_tokens is the default and the vast majority of compatible gateways only accept it; OpenAI's official reasoning models (the o series / GPT-5) conversely only accept max_completion_tokens and fail outright with unsupported_parameter when they receive max_tokens.",
+  cyberneurova:
+    "Which key carries the cap. max_tokens is the default and works with all Cyberneurova models.",
   anthropic: "Only selectable for the openai format. Anthropic's field name is fixed as max_tokens.",
   "openai-responses": "Only selectable for the openai format. The Responses API's field name is fixed as max_output_tokens.",
   ollama: "Only selectable for the openai format. Ollama's field name is fixed as max_tokens.",
 };
 // LLM profile formats. The default in the create form is "anthropic"; "ollama" is the
-// keyless local-server format (base URL defaults to http://127.0.0.1:11434/v1).
-type ProfileFormat = "anthropic" | "openai" | "openai-responses" | "ollama";
+// keyless local-server format (base URL defaults to http://127.0.0.1:11434/v1);
+// "cyberneurova" is the OpenRoute endpoint (OpenAI-compatible, base URL pre-filled).
+type ProfileFormat = "anthropic" | "openai" | "openai-responses" | "ollama" | "cyberneurova";
 const OLLAMA_DEFAULT_BASE_URL = "http://127.0.0.1:11434/v1";
+const CYBERNEUROVA_DEFAULT_BASE_URL = "https://openroute.cyberneurova.com/v1";
 const EFFORT_LEVELS: { value: string; label: string }[] = [
   { value: NONE, label: "Not sent (default)" },
   { value: "low", label: "low" },
@@ -350,7 +354,10 @@ function ProfileSheet({
     if (!open) return;
     setName(profile?.name ?? "");
     setFormat(
-      profile?.format === "openai" || profile?.format === "openai-responses" || profile?.format === "ollama"
+      profile?.format === "openai" ||
+      profile?.format === "openai-responses" ||
+      profile?.format === "ollama" ||
+      profile?.format === "cyberneurova"
         ? profile.format
         : "anthropic",
     );
@@ -455,9 +462,9 @@ function ProfileSheet({
         pool_exclude: poolExclude,
         streaming,
         max_tokens: Math.max(0, Number(maxTokens) || 0),
-        // The field-name switch only matters for openai (Chat Completions); every other format falls back to the default,
-        // and the backend re-applies the same normalization; this just keeps the UI from sending contradictory values.
-        max_tokens_field: format === "openai" ? toStore(maxTokensField) : "",
+        // The field-name switch only matters for openai/cyberneurova (Chat Completions); every other format falls back to
+        // the default, and the backend re-applies the same normalization; this just keeps the UI from sending contradictory values.
+        max_tokens_field: format === "openai" || format === "cyberneurova" ? toStore(maxTokensField) : "",
         session_header_key: sessionHeaderKey.trim(),
         user_agent: userAgent.trim(),
         retry,
@@ -476,6 +483,8 @@ function ProfileSheet({
   let keyPlaceholder = "sk-…";
   if (format === "ollama") {
     keyPlaceholder = "optional — a local Ollama server runs keyless";
+  } else if (format === "cyberneurova") {
+    keyPlaceholder = keyHint ? `Set (${keyHint}); leave empty to keep it` : "sk-cnor-… (OpenRoute key)";
   } else if (keyHint) {
     keyPlaceholder = `Set (${keyHint}); leave empty to keep it`;
   }
@@ -515,7 +524,17 @@ function ProfileSheet({
             </div>
             <div className="grid gap-2">
               <Label>Format</Label>
-              <Select value={format} onValueChange={(v) => setFormat(v as ProfileFormat)}>
+              <Select
+                value={format}
+                onValueChange={(v) => {
+                  const f = v as ProfileFormat;
+                  setFormat(f);
+                  // Pre-fill base URL when switching to cyberneurova and the field is blank.
+                  if (f === "cyberneurova" && !baseUrl.trim()) {
+                    setBaseUrl(CYBERNEUROVA_DEFAULT_BASE_URL);
+                  }
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a format" />
                 </SelectTrigger>
@@ -524,6 +543,7 @@ function ProfileSheet({
                   <SelectItem value="openai">OpenAI (Chat Completions)</SelectItem>
                   <SelectItem value="openai-responses">OpenAI (Responses API)</SelectItem>
                   <SelectItem value="ollama">Ollama (local, no key needed)</SelectItem>
+                  <SelectItem value="cyberneurova">Cyberneurova (OpenRoute)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -535,7 +555,13 @@ function ProfileSheet({
               <Input
                 id="p-model"
                 className="font-mono"
-                placeholder={format === "ollama" ? "llama3.2" : "claude-opus-4-8"}
+                placeholder={
+                  format === "ollama"
+                    ? "llama3.2"
+                    : format === "cyberneurova"
+                      ? "fetch ↗ or type a model id"
+                      : "claude-opus-4-8"
+                }
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
               />
@@ -581,7 +607,13 @@ function ProfileSheet({
             <Input
               id="p-base-url"
               className="font-mono"
-              placeholder={format === "ollama" ? OLLAMA_DEFAULT_BASE_URL : "https://api.openai.com/v1"}
+              placeholder={
+                format === "ollama"
+                  ? OLLAMA_DEFAULT_BASE_URL
+                  : format === "cyberneurova"
+                    ? CYBERNEUROVA_DEFAULT_BASE_URL
+                    : "https://api.openai.com/v1"
+              }
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
             />
@@ -742,9 +774,9 @@ function ProfileSheet({
                 <p className="text-muted-foreground text-xs">{MAX_TOKENS_FIELD_HINTS[format]}</p>
               </div>
               <Select
-                value={format === "openai" ? maxTokensField : NONE}
+                value={format === "openai" || format === "cyberneurova" ? maxTokensField : NONE}
                 onValueChange={setMaxTokensField}
-                disabled={format !== "openai"}
+                disabled={format !== "openai" && format !== "cyberneurova"}
               >
                 <SelectTrigger className="w-56 shrink-0">
                   <SelectValue />
