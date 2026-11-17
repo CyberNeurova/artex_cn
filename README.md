@@ -59,7 +59,7 @@ ARTEX_LLM_PROVIDER=cyberneurova
 docker compose up -d
 ```
 
-ARTEX is now running at **http://localhost:8080**.
+ARTEX is now running at **http://localhost:8787**.
 
 ### 4 · Set a password
 
@@ -93,8 +93,8 @@ Instead of a local password, you can allow login via your CyberNeurova account.
 
 1. Open [chat.cyberneurova.ai](https://chat.cyberneurova.ai) → **Settings → Developer** (requires a Pro or Pro Max plan).
 2. Click **New application**.
-3. Set the **Redirect URI** to `http://localhost:8080/api/auth/cyberneurova/callback`  
-   (replace `localhost:8080` with your actual host and port if running behind a reverse proxy).
+3. Set the **Redirect URI** to `http://localhost:8787/api/auth/cyberneurova/callback`  
+   (replace `localhost:8787` with your actual host and port if running behind a reverse proxy).
 4. Note the **Client ID** and **Client secret**.
 
 ### Add the credentials to `.env`
@@ -102,7 +102,7 @@ Instead of a local password, you can allow login via your CyberNeurova account.
 ```env
 ARTEX_OAUTH_CLIENT_ID=cyberneurova_…
 ARTEX_OAUTH_CLIENT_SECRET=cnsec_…
-ARTEX_OAUTH_REDIRECT_URI=http://localhost:8080/api/auth/cyberneurova/callback
+ARTEX_OAUTH_REDIRECT_URI=http://localhost:8787/api/auth/cyberneurova/callback
 ```
 
 Restart ARTEX (`docker compose restart artex`) and the **Sign in with CyberNeurova** button appears on the login page.
