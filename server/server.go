@@ -700,6 +700,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/change-password", s.authChangePassword)
 	mux.HandleFunc("GET /api/auth/cyberneurova", s.authCyberneurovaBegin)
 	mux.HandleFunc("GET /api/auth/cyberneurova/callback", s.authCyberneurovaCallback)
+	mux.HandleFunc("GET /callback", s.authCyberneurovaCallback) // short alias for OAuth app registration
 
 	mux.HandleFunc("GET /api/health", s.health)
 	mux.HandleFunc("GET /api/stats", s.stats)
