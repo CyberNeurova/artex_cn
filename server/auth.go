@@ -248,7 +248,7 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 503, errDataSourceUnavailable)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"initialized": hash != ""})
+	writeJSON(w, 200, map[string]any{"initialized": hash != "", "oauth_enabled": s.oauthEnabled()})
 }
 
 // initSetupToken generates the one-time setup token when no admin password is set

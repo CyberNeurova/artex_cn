@@ -255,7 +255,7 @@ export const api = {
   health: () => get<{ ok: boolean; service: string; version: string; latest_version?: string }>("/health"),
 
   // ---- auth ----
-  authStatus: () => get<{ initialized: boolean }>("/auth/status"),
+  authStatus: () => get<{ initialized: boolean; oauth_enabled?: boolean }>("/auth/status"),
   login: (username: string, password: string) => post<{ token: string }>("/auth/login", { username, password }),
   initPassword: (password: string, setupToken: string) =>
     post<{ token: string }>("/auth/init", { password, setup_token: setupToken }),

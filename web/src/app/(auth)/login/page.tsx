@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [oauthEnabled, setOauthEnabled] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [readToEnd, setReadToEnd] = useState(false);
@@ -41,6 +42,11 @@ export default function LoginPage() {
   }, [termsOpen]);
 
   useEffect(() => {
+    // Show any error forwarded from the OAuth callback.
+    const params = new URLSearchParams(window.location.search);
+    const oauthErr = params.get("error");
+    if (oauthErr) setError(decodeURIComponent(oauthErr));
+
     // Already signed in — go straight to the main UI (static export has no middleware to do this redirect).
     const token = auth.getToken();
     if (token) {
@@ -52,8 +58,9 @@ export default function LoginPage() {
     }
     api
       .authStatus()
-      .then(({ initialized }) => {
+      .then(({ initialized, oauth_enabled }) => {
         if (!initialized) router.replace("/setup");
+        setOauthEnabled(!!oauth_enabled);
       })
       .catch(() => setError("Unable to connect to the backend service"))
       .finally(() => setChecking(false));
@@ -146,6 +153,18 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
+          {oauthEnabled && (
+            <div className="flex flex-col gap-4">
+              <div className="relative flex items-center">
+                <div className="flex-1 border-t" />
+                <span className="mx-3 text-xs uppercase text-muted-foreground">or</span>
+                <div className="flex-1 border-t" />
+              </div>
+              <Button variant="outline" className="w-full" asChild>
+                <a href="/api/auth/cyberneurova">Sign in with CyberNeurova</a>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

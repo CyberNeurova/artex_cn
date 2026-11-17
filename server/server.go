@@ -57,6 +57,11 @@ type Server struct {
 	loginLimit     *loginLimiter  // per-IP attempt limit on POST /api/auth/login
 	trustedProxies []netip.Prefix // ARTEX_TRUSTED_PROXIES; see clientIP
 
+	oauthClientID     string          // ARTEX_OAUTH_CLIENT_ID
+	oauthClientSecret string          // ARTEX_OAUTH_CLIENT_SECRET
+	oauthRedirectURI  string          // ARTEX_OAUTH_REDIRECT_URI
+	oauthStates       *oauthStateStore // in-flight PKCE flows
+
 	// concMu serializes concurrency-cap decisions (admission + reconcile) so a
 	// scheduler tick and an HTTP settings change / task creation can't both count
 	// free slots off the same snapshot and over-promote past the limit.
@@ -165,7 +170,11 @@ func New(ctx context.Context, m *Manager, skillDir string, dataDir string, keyDi
 		profChatAgents: map[int64]*agent.ChatAgent{},
 		provByProfile:  map[int64]*provEntry{}, llmHealth: newLLMHealthRegistry(m.pg),
 		taskAgents: map[string]*taskAgentBundle{}, archiveWake: make(chan struct{}, 1),
-		loginLimit: newLoginLimiter(time.Now)}
+		loginLimit:  newLoginLimiter(time.Now),
+		oauthStates: newOAuthStateStore()}
+	s.oauthClientID = os.Getenv("ARTEX_OAUTH_CLIENT_ID")
+	s.oauthClientSecret = os.Getenv("ARTEX_OAUTH_CLIENT_SECRET")
+	s.oauthRedirectURI = os.Getenv("ARTEX_OAUTH_REDIRECT_URI")
 	for _, o := range opts {
 		o(s)
 	}
@@ -689,6 +698,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/init", s.authInit)
 	mux.HandleFunc("POST /api/auth/login", s.authLogin)
 	mux.HandleFunc("POST /api/auth/change-password", s.authChangePassword)
+	mux.HandleFunc("GET /api/auth/cyberneurova", s.authCyberneurovaBegin)
+	mux.HandleFunc("GET /api/auth/cyberneurova/callback", s.authCyberneurovaCallback)
 
 	mux.HandleFunc("GET /api/health", s.health)
 	mux.HandleFunc("GET /api/stats", s.stats)
